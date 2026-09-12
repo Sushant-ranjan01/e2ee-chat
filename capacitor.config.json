@@ -1,0 +1,8 @@
+{
+  "appId": "com.sushant.e2eechat",
+  "appName": "E2EE Chat",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https"
+  }
+}

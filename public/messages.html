@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>🔒 Messages — E2EE Chat</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#181c30" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="messages.css" />
+</head>
+<body>
+
+<div id="unlockScreen" class="screen hidden">
+  <div class="card">
+    <h2>🔑 Unlock your messages</h2>
+    <p class="subtitle">Enter your password to decrypt your conversations on this device.</p>
+    <input id="unlockPassword" type="password" placeholder="Password" autocomplete="current-password" />
+    <button id="unlockBtn" class="primary" style="margin-top:10px;">Unlock</button>
+    <p id="unlockError" class="error"></p>
+  </div>
+</div>
+
+<div id="msgApp" class="msg-app hidden">
+  <header class="msg-header">
+    <strong>🔒 Messages</strong>
+    <span id="meLabel" class="header-status"></span>
+    <span style="flex:1"></span>
+    <a href="index.html" class="nav-link" title="Quick encrypted room">📹 Quick Room</a>
+    <button id="msgLogoutBtn" title="Log out">🚪</button>
+  </header>
+
+  <div class="msg-body">
+    <!-- Conversation list -->
+    <div id="convoListView" class="convo-list-view">
+      <div class="search-bar">
+        <input id="searchInput" placeholder="Search username to message…" autocomplete="off" />
+      </div>
+      <div id="searchResults" class="search-results hidden"></div>
+      <div id="convoList" class="convo-list"></div>
+      <p id="noConvos" class="hint" style="text-align:center;padding:20px;">No conversations yet — search a username above to start one.</p>
+    </div>
+
+    <!-- Active thread -->
+    <div id="threadView" class="thread-view hidden">
+      <div class="thread-header">
+        <button id="backBtn" class="back-btn">←</button>
+        <strong id="threadPeerName"></strong>
+      </div>
+      <div id="threadMessages" class="thread-messages"></div>
+      <div class="thread-composer">
+        <input id="threadInput" placeholder="Type a message…" autocomplete="off" />
+        <button id="threadSendBtn" class="primary">Send</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/socket.io.min.js"></script>
+<script type="module" src="messages.js"></script>
+<script type="module">
+  import { isNativeApp } from "./config.js";
+  if ("serviceWorker" in navigator && !isNativeApp) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js"));
+  }
+</script>
+</body>
+</html>
