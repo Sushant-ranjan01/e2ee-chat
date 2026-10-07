@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">E2EE Chat</string>
+    <string name="title_activity_main">E2EE Chat</string>
+    <string name="package_name">com.sushant.e2eechat</string>
+    <string name="custom_url_scheme">com.sushant.e2eechat</string>
+</resources>

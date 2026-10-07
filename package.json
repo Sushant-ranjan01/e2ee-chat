@@ -1,0 +1,29 @@
+{
+  "name": "e2ee-chat",
+  "version": "1.0.0",
+  "description": "End-to-end encrypted chat: ad-hoc P2P Quick Rooms (text/emoji/files/audio/video/calls) plus persistent WhatsApp-style Messages by username, with password-based accounts and MongoDB storage the server can't decrypt.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "android:sync": "npx cap copy android",
+    "android:open": "npx cap open android"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/filesystem": "^8.1.4",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/share": "^8.0.3",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.2",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.7.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.5",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.8.3"
+  }
+}

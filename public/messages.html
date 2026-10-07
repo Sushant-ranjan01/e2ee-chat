@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Messages — SecureChat</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#000000" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<link rel="stylesheet" href="style.css" />
+<link rel="stylesheet" href="messages.css" />
+</head>
+<body>
+
+<div id="unlockScreen" class="screen hidden">
+  <div class="card">
+    <div class="brand-mark" id="unlockBrandMark"></div>
+    <h2>Unlock your messages</h2>
+    <p class="subtitle">Enter your password to decrypt your conversations on this device.</p>
+    <input id="unlockPassword" type="password" placeholder="Password" autocomplete="current-password" />
+    <button id="unlockBtn" class="primary" style="margin-top:10px;">Unlock</button>
+    <p id="unlockError" class="error"></p>
+    <p class="hint"><a href="#" id="unlockBackToLogin" class="link">Back to login</a></p>
+  </div>
+</div>
+
+<div id="msgApp" class="msg-app hidden">
+  <header class="msg-header">
+    <strong>Messages</strong>
+    <span id="meLabel" class="header-status"></span>
+    <span style="flex:1"></span>
+    <a href="index.html" class="nav-link icon-btn" title="Quick Room" id="quickRoomLink"></a>
+    <button id="msgLogoutBtn" class="icon-btn" title="Log out"></button>
+  </header>
+
+  <div id="connBanner" class="conn-banner hidden">Reconnecting…</div>
+
+  <div class="msg-body">
+    <!-- Conversation list -->
+    <div id="convoListView" class="convo-list-view">
+      <div class="search-bar">
+        <span class="search-icon" id="searchIcon"></span>
+        <input id="searchInput" placeholder="Search username to message…" autocomplete="off" />
+        <button id="newGroupBtn" class="icon-btn" title="New group"></button>
+      </div>
+      <div id="searchResults" class="search-results hidden"></div>
+      <div id="convoList" class="convo-list"></div>
+      <div id="noConvos" class="empty-convos">
+        <div class="empty-icon" id="emptyConvosIcon"></div>
+        <strong>No conversations yet</strong>
+        <span>Search a username above to start chatting, or create a group.</span>
+      </div>
+    </div>
+
+    <!-- New group panel -->
+    <div id="newGroupPanel" class="new-group-panel hidden">
+      <div class="new-group-card">
+        <div class="new-group-card-header">
+          <h3>New group</h3>
+          <button id="closeGroupBtn" class="icon-btn" title="Close"></button>
+        </div>
+        <input id="groupNameInput" placeholder="Group name" autocomplete="off" />
+        <div id="groupMemberChips" class="chip-row"></div>
+        <input id="groupMemberSearch" placeholder="Add members by username…" autocomplete="off" style="margin-top:8px;" />
+        <div id="groupMemberResults" class="search-results-inline"></div>
+        <div class="new-group-actions">
+          <button id="cancelGroupBtn">Cancel</button>
+          <button id="createGroupBtn" class="primary">Create group</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Desktop welcome pane (shown on wide screens when no chat is open) -->
+    <div id="threadEmpty" class="thread-empty">
+      <div class="thread-empty-inner">
+        <div class="brand-mark" id="welcomeMark"></div>
+        <h2>Your messages are private</h2>
+        <p>End-to-end encrypted — only you and the people you chat with can read them, not even the server.</p>
+        <p class="thread-empty-hint">Pick a conversation on the left, or:</p>
+        <div class="thread-empty-actions">
+          <button id="welcomeGroupBtn" class="welcome-action"></button>
+          <a href="index.html" id="welcomeRoomBtn" class="welcome-action"></a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active thread -->
+    <div id="threadView" class="thread-view hidden">
+      <div class="thread-header">
+        <button id="backBtn" class="icon-btn back-icon-btn" title="Back"></button>
+        <div class="thread-header-meta">
+          <strong id="threadPeerName"></strong>
+          <span id="threadPeerStatus" class="thread-header-status"></span>
+        </div>
+        <button id="threadCallBtn" class="icon-btn" title="Start video call"></button>
+      </div>
+      <div id="threadMessages" class="thread-messages"></div>
+
+      <div id="typingIndicator" class="typing-indicator hidden">
+        <span class="typing-dots"><span></span><span></span><span></span></span>
+        <span id="typingLabel"></span>
+      </div>
+
+      <div id="msgRecordingBar" class="recording-bar hidden">
+        <span class="rec-dot"></span>
+        <span>Recording voice message…</span>
+        <button id="msgStopRecordBtn">Stop &amp; Send</button>
+        <button id="msgCancelRecordBtn">Cancel</button>
+      </div>
+
+      <div id="replyBar" class="reply-bar hidden">
+        <div class="reply-bar-body">
+          <strong id="replyBarName"></strong>
+          <span id="replyBarText"></span>
+        </div>
+        <button id="replyCancelBtn" class="icon-btn" title="Cancel reply"></button>
+      </div>
+
+      <div id="emojiPanel" class="emoji-picker hidden"></div>
+
+      <div class="thread-composer">
+        <button id="msgEmojiBtn" class="icon-btn" title="Emoji"></button>
+        <button id="msgFileBtn" class="icon-btn" title="Send file"></button>
+        <button id="msgVoiceBtn" class="icon-btn" title="Voice message"></button>
+        <button id="msgShareRoomBtn" class="icon-btn" title="Share a Quick Room"></button>
+        <input id="threadInput" placeholder="Type a message…" autocomplete="off" />
+        <button id="threadSendBtn" class="primary icon-btn" title="Send"></button>
+        <input type="file" id="msgFileInput" hidden />
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Full-screen image viewer -->
+<div id="lightbox" class="lightbox hidden">
+  <div class="lightbox-bar">
+    <button id="lightboxSave" class="icon-btn" title="Save / share"></button>
+    <button id="lightboxClose" class="icon-btn" title="Close"></button>
+  </div>
+  <img id="lightboxImg" alt="" />
+</div>
+
+<div id="toast" class="toast hidden"></div>
+
+<!-- Incoming direct video call -->
+<div id="incomingCall" class="incoming-call hidden">
+  <div class="incoming-call-card">
+    <div class="avatar incoming-call-avatar" id="incomingCallAvatar"></div>
+    <div class="incoming-call-title" id="incomingCallTitle"></div>
+    <div class="incoming-call-sub" id="incomingCallSub">Incoming video call</div>
+    <div class="incoming-call-actions">
+      <button id="declineCallBtn" class="call-decline icon-btn" title="Decline"></button>
+      <button id="acceptCallBtn" class="call-accept icon-btn" title="Accept"></button>
+    </div>
+  </div>
+</div>
+
+<script src="vendor/socket.io.min.js"></script>
+<script type="module">
+  import { ICONS } from "./icons.js";
+  document.getElementById("unlockBrandMark").innerHTML = ICONS.key;
+  document.getElementById("quickRoomLink").innerHTML = ICONS.room;
+  document.getElementById("msgLogoutBtn").innerHTML = ICONS.logout;
+  document.getElementById("searchIcon").innerHTML = ICONS.search;
+  document.getElementById("newGroupBtn").innerHTML = ICONS.userPlus;
+  document.getElementById("closeGroupBtn").innerHTML = ICONS.close;
+  document.getElementById("backBtn").innerHTML = ICONS.back;
+  document.getElementById("msgFileBtn").innerHTML = ICONS.attach;
+  document.getElementById("msgVoiceBtn").innerHTML = ICONS.mic;
+  document.getElementById("msgShareRoomBtn").innerHTML = ICONS.room;
+  document.getElementById("threadCallBtn").innerHTML = ICONS.video;
+  document.getElementById("msgEmojiBtn").innerHTML = ICONS.smile;
+  document.getElementById("replyCancelBtn").innerHTML = ICONS.close;
+  document.getElementById("lightboxSave").innerHTML = ICONS.download;
+  document.getElementById("lightboxClose").innerHTML = ICONS.close;
+  document.getElementById("emptyConvosIcon").innerHTML = ICONS.message;
+  document.getElementById("welcomeMark").innerHTML = ICONS.lock;
+  document.getElementById("welcomeGroupBtn").innerHTML = ICONS.userPlus + "<span>New group</span>";
+  document.getElementById("welcomeRoomBtn").innerHTML = ICONS.room + "<span>Start a Quick Room</span>";
+  document.getElementById("declineCallBtn").innerHTML = ICONS.phoneOff;
+  document.getElementById("acceptCallBtn").innerHTML = ICONS.video;
+  document.getElementById("threadSendBtn").innerHTML = ICONS.send;
+</script>
+<script type="module" src="messages.js"></script>
+<script type="module">
+  import { isNativeApp } from "./config.js";
+  if ("serviceWorker" in navigator && !isNativeApp) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js"));
+  }
+</script>
+</body>
+</html>

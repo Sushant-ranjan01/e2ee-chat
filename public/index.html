@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Quick Room — SecureChat</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#000000" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="SecureChat" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="landing" class="screen">
+  <div class="card">
+    <div class="brand-mark" id="brandMark"></div>
+    <h1>Quick Room</h1>
+    <p class="subtitle">Text, files, audio &amp; video — encrypted so only the people in the room can read it. Not even this server can. Up to 6 people per room.</p>
+    <p class="hint" style="margin-bottom:16px;">Logged in as <span id="loggedInPhone"></span> · <a href="#" id="landingLogout" class="link">log out</a></p>
+    <p class="hint" style="margin-bottom:16px;"><a href="messages.html" class="link" id="goToMessagesLink"></a></p>
+
+    <button id="createBtn" class="primary">Start a new room</button>
+
+    <div class="divider">or</div>
+
+    <div class="join-row">
+      <input id="joinCode" placeholder="Enter room code" maxlength="12" autocomplete="off" />
+      <button id="joinBtn">Join</button>
+    </div>
+    <p id="landingError" class="error"></p>
+  </div>
+</div>
+
+<div id="chat" class="screen hidden">
+  <header id="chatHeader">
+    <button id="leaveBtn" class="icon-btn back-icon-btn" title="Leave room"></button>
+    <div class="status-dot" id="statusDot"></div>
+    <div class="header-text">
+      <strong>Room <span id="headerRoomCode"></span></strong>
+      <span id="headerStatus" class="header-status">connecting…</span>
+    </div>
+    <button id="copyCodeBtn" class="icon-btn" title="Copy room code"></button>
+    <button id="callBtn" class="icon-btn" title="Start video call"></button>
+    <button id="endCallBtn" class="icon-btn hidden" title="End call"></button>
+    <a href="messages.html" class="nav-link-btn icon-btn" title="Messages"></a>
+    <button id="logoutBtn" class="icon-btn" title="Log out"></button>
+  </header>
+
+  <div id="fingerprintBar" class="fingerprint-bar hidden">
+    <span class="fp-icon"></span>
+    Verify each connection is really end-to-end encrypted — compare these codes with each person out loud:
+    <div id="fingerprintList"></div>
+  </div>
+
+  <div id="videoArea" class="video-area hidden">
+    <video id="localVideo" autoplay playsinline muted></video>
+    <!-- Remote participants' video elements are added here dynamically, one per person -->
+  </div>
+
+  <div id="callControls" class="call-controls hidden">
+    <button id="muteBtn" class="call-ctl" title="Mute microphone"></button>
+    <button id="camToggleBtn" class="call-ctl" title="Turn camera off"></button>
+    <button id="flipCamBtn" class="call-ctl hidden" title="Switch camera"></button>
+    <button id="hangupBtn" class="call-ctl danger" title="End call"></button>
+  </div>
+
+  <div id="messages"></div>
+
+  <div id="composer">
+    <button id="fileBtn" class="icon-btn" title="Send file"></button>
+    <button id="audioBtn" class="icon-btn" title="Record voice message"></button>
+    <button id="videoMsgBtn" class="icon-btn" title="Record video message"></button>
+    <input id="textInput" placeholder="Type an encrypted message…" autocomplete="off" />
+    <button id="sendBtn" class="primary icon-btn" title="Send"></button>
+    <input type="file" id="fileInput" multiple hidden />
+  </div>
+
+  <div id="recordingBar" class="recording-bar hidden">
+    <span class="rec-dot"></span>
+    <span id="recordingLabel">Recording…</span>
+    <button id="stopRecordBtn">Stop &amp; Send</button>
+    <button id="cancelRecordBtn">Cancel</button>
+  </div>
+</div>
+
+<script src="vendor/socket.io.min.js"></script>
+<script type="module">
+  import { ICONS } from "./icons.js";
+  document.getElementById("brandMark").innerHTML = ICONS.room;
+  document.getElementById("goToMessagesLink").innerHTML = ICONS.message + " Go to Messages";
+  document.getElementById("leaveBtn").innerHTML = ICONS.back;
+  document.getElementById("copyCodeBtn").innerHTML = ICONS.copy;
+  document.getElementById("callBtn").innerHTML = ICONS.video;
+  document.getElementById("endCallBtn").innerHTML = ICONS.phoneOff;
+  document.querySelector(".nav-link-btn").innerHTML = ICONS.message;
+  document.getElementById("logoutBtn").innerHTML = ICONS.logout;
+  document.getElementById("muteBtn").innerHTML = ICONS.mic;
+  document.getElementById("camToggleBtn").innerHTML = ICONS.video;
+  document.getElementById("flipCamBtn").innerHTML = ICONS.flipCamera;
+  document.getElementById("hangupBtn").innerHTML = ICONS.phoneOff;
+  document.querySelector(".fp-icon").innerHTML = ICONS.key;
+  document.getElementById("fileBtn").innerHTML = ICONS.attach;
+  document.getElementById("audioBtn").innerHTML = ICONS.mic;
+  document.getElementById("videoMsgBtn").innerHTML = ICONS.camera;
+  document.getElementById("sendBtn").innerHTML = ICONS.send;
+</script>
+<script type="module" src="app.js"></script>
+<script type="module">
+  import { isNativeApp } from "./config.js";
+  if ("serviceWorker" in navigator && !isNativeApp) {
+    window.addEventListener("load", () => navigator.serviceWorker.register("/sw.js"));
+  }
+</script>
+</body>
+</html>

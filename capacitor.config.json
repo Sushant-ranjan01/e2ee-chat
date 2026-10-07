@@ -1,0 +1,14 @@
+{
+  "appId": "com.sushant.e2eechat",
+  "appName": "E2EE Chat",
+  "webDir": "public",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_chat",
+      "iconColor": "#5682B1"
+    }
+  }
+}
