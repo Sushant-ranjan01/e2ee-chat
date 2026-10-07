@@ -6,9 +6,17 @@ const User = require("../models/User");
 const { signToken } = require("../utils/token");
 const { requireAuth } = require("../middleware/authMiddleware");
 
-const PHONE_REGEX = /^\+?[1-9]\d{7,14}$/; // loose E.164-ish check
+// Server-side is the authoritative check (client-side validation can always
+// be bypassed) - requires the +91 country code plus a valid Indian mobile
+// number: exactly 10 digits, starting with 6-9.
+const PHONE_REGEX = /^\+91[6-9]\d{9}$/;
 const USERNAME_REGEX = /^[a-z0-9_]{3,20}$/; // lowercase letters/digits/underscore
 const BCRYPT_ROUNDS = 12;
+
+// Usernames are *shown* as "@name" everywhere, so people will naturally type
+// the "@" too. It's purely a display prefix: we strip it and store/compare
+// the bare name, which keeps every existing account working unchanged.
+const stripAt = (s) => String(s || "").trim().replace(/^@+/, "").toLowerCase();
 
 // Basic brute-force protection: a handful of attempts per IP per window,
 // separate limiters so a slow login doesn't block registration and vice versa.
@@ -35,15 +43,15 @@ router.post("/register", registerLimiter, async (req, res) => {
   try {
     const { username, phoneNumber, password, publicKey, encryptedPrivateKey } = req.body || {};
 
-    if (!username || !USERNAME_REGEX.test(String(username).trim().toLowerCase())) {
+    if (!username || !USERNAME_REGEX.test(stripAt(username))) {
       return res.status(400).json({
-        error: "Username must be 3-20 characters: lowercase letters, numbers, or underscore.",
+        error: "Username must be 3-20 characters: letters, numbers, or underscore (after the @).",
       });
     }
     if (!phoneNumber || !PHONE_REGEX.test(String(phoneNumber).trim())) {
       return res
         .status(400)
-        .json({ error: "Enter a valid phone number with country code, e.g. +919876543210" });
+        .json({ error: "Enter a valid 10-digit Indian mobile number." });
     }
     if (!password || String(password).length < 8) {
       return res.status(400).json({ error: "Password must be at least 8 characters." });
@@ -52,7 +60,7 @@ router.post("/register", registerLimiter, async (req, res) => {
       return res.status(400).json({ error: "Missing encryption key material — this looks like a client bug." });
     }
 
-    const cleanUsername = String(username).trim().toLowerCase();
+    const cleanUsername = stripAt(username);
     const cleanPhone = String(phoneNumber).trim();
 
     const existing = await User.findOne({ $or: [{ username: cleanUsername }, { phoneNumber: cleanPhone }] });
@@ -99,7 +107,7 @@ router.post("/login", loginLimiter, async (req, res) => {
       return res.status(400).json({ error: "Username/phone number and password are required." });
     }
 
-    const clean = String(identifier).trim().toLowerCase();
+    const clean = stripAt(identifier);
     const user = await User.findOne({ $or: [{ username: clean }, { phoneNumber: String(identifier).trim() }] });
 
     // Same error for "no such user" and "wrong password" - don't reveal which

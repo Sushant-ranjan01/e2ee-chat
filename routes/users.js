@@ -9,7 +9,7 @@ const USERNAME_QUERY_REGEX = /^[a-z0-9_]{1,20}$/;
 // finding someone to message doesn't expose their phone number to strangers.
 router.get("/search", requireAuth, async (req, res) => {
   try {
-    const q = String(req.query.q || "").trim().toLowerCase();
+    const q = String(req.query.q || "").trim().replace(/^@+/, "").toLowerCase();
     if (!q || !USERNAME_QUERY_REGEX.test(q)) {
       return res.json({ users: [] });
     }
@@ -32,7 +32,7 @@ router.get("/search", requireAuth, async (req, res) => {
 // starting a new thread from a known username).
 router.get("/:username", requireAuth, async (req, res) => {
   try {
-    const username = String(req.params.username).trim().toLowerCase();
+    const username = String(req.params.username).trim().replace(/^@+/, "").toLowerCase();
     const user = await User.findOne({ username }).select("username publicKey").lean();
     if (!user) return res.status(404).json({ error: "No user with that username." });
     res.json({ username: user.username, publicKey: user.publicKey });

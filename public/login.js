@@ -62,9 +62,9 @@ async function completeLogin({ token, user, publicKey, encryptedPrivateKey }, pa
 }
 
 $("loginBtn").onclick = async () => {
-  const identifier = $("loginIdentifier").value.trim();
+  const identifier = $("loginIdentifier").value.trim().replace(/^@+/, "");
   const password = $("loginPassword").value;
-  if (!identifier || !password) return showError("Enter your username/phone and password.");
+  if (!identifier || !password) return showError("Enter your @username (or phone) and password.");
 
   $("loginBtn").disabled = true;
   try {
@@ -84,15 +84,35 @@ $("loginBtn").onclick = async () => {
   }
 };
 
+// Usernames are always shown as "@name". The "@" is displayed for them (and
+// stripped if they type or paste it), so what's stored is the bare name.
+$("regUsername").addEventListener("input", () => {
+  $("regUsername").value = $("regUsername").value.replace(/^@+/, "").toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20);
+});
+
+// Only let digits be typed into the phone field, and cap at 10 characters
+// as they type (belt-and-suspenders alongside the real validation below).
+$("regPhone").addEventListener("input", () => {
+  $("regPhone").value = $("regPhone").value.replace(/\D/g, "").slice(0, 10);
+});
+
+// Valid Indian mobile numbers are exactly 10 digits, starting with 6-9.
+const INDIAN_MOBILE_REGEX = /^[6-9]\d{9}$/;
+
 $("registerBtn").onclick = async () => {
-  const username = $("regUsername").value.trim().toLowerCase();
-  const phoneNumber = $("regPhone").value.trim();
+  const username = $("regUsername").value.trim().replace(/^@+/, "").toLowerCase();
+  const phoneDigits = $("regPhone").value.trim();
   const password = $("regPassword").value;
   const confirm = $("regPasswordConfirm").value;
 
-  if (!username || !phoneNumber || !password) return showError("Fill in all fields.");
+  if (!username || !phoneDigits || !password) return showError("Fill in all fields.");
+  if (!INDIAN_MOBILE_REGEX.test(phoneDigits)) {
+    return showError("Enter a valid 10-digit mobile number (starts with 6-9).");
+  }
   if (password.length < 8) return showError("Password must be at least 8 characters.");
   if (password !== confirm) return showError("Passwords don't match.");
+
+  const phoneNumber = `+91${phoneDigits}`;
 
   $("registerBtn").disabled = true;
   try {

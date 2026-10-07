@@ -9,7 +9,7 @@
  * by design, since messages are never stored anywhere.
  */
 
-const CACHE_NAME = "e2ee-chat-shell-v2";
+const CACHE_NAME = "e2ee-chat-shell-v7";
 const SHELL_FILES = [
   "/login.html",
   "/login.js",
@@ -20,7 +20,9 @@ const SHELL_FILES = [
   "/messages.css",
   "/crypto.js",
   "/webrtc.js",
+  "/call.js",
   "/config.js",
+  "/icons.js",
   "/style.css",
   "/manifest.json",
   "/vendor/socket.io.min.js",

@@ -1,6 +1,7 @@
 import * as C from "./crypto.js";
 import { PeerLink } from "./webrtc.js";
 import { SERVER_URL } from "./config.js";
+import { ICONS } from "./icons.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -30,24 +31,28 @@ $("landingLogout")?.addEventListener("click", (e) => {
 $("logoutBtn")?.addEventListener("click", logout);
 
 // ---------- Screens ----------
-const screens = { landing: $("landing"), waiting: $("waiting"), chat: $("chat") };
+const screens = { landing: $("landing"), chat: $("chat") };
 function showScreen(name) {
   Object.values(screens).forEach((s) => s.classList.add("hidden"));
   screens[name].classList.remove("hidden");
 }
 
 // ---------- State ----------
+// A Quick Room can now hold multiple people. Every other participant gets
+// their own PeerLink (own direct WebRTC connection) and their own pairwise
+// AES key — see the module doc comment in webrtc.js for why.
 let socket;
 let roomId = null;
-let isInitiator = false;
-let keyPair = null;
+let roomMaxSize = 6;
+let keyPair = null; // ONE keypair per room session, reused for every pairwise ECDH exchange
 let myPublicKeyB64 = null;
-let peerPublicKeyB64 = null;
-let sharedKey = null;
-let peerLink = null;
 let localStream = null;
 const CHUNK_SIZE = 16 * 1024; // 16KB plaintext per chunk
-const incomingFiles = new Map(); // id -> { meta, chunks: [], received }
+
+/** socketId -> { peerLink, username, publicKeyB64, sharedKey, videoEl } */
+const peers = new Map();
+/** file transfer id -> { meta, chunks, received, bubbleId, fromSocketId } */
+const incomingFiles = new Map();
 
 // ---------- Landing ----------
 $("createBtn").onclick = () => {
@@ -62,6 +67,17 @@ $("joinBtn").onclick = () => {
 $("joinCode").addEventListener("keydown", (e) => {
   if (e.key === "Enter") $("joinBtn").click();
 });
+
+// Arrived via a "Join Quick Room" invite link from Messages
+// (index.html?room=CODE)? Auto-join it straight away.
+const inviteRoomCode = new URLSearchParams(window.location.search).get("room");
+if (inviteRoomCode) {
+  // Consume the ?room= param right away. Otherwise any reload (or the old
+  // "leave" button, which reloaded the page) would instantly re-join the
+  // same room - which is what made it impossible to get out of a Quick Room.
+  history.replaceState(null, "", window.location.pathname);
+  startRoom(inviteRoomCode.trim().toUpperCase());
+}
 
 function generateRoomCode() {
   const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
@@ -93,76 +109,130 @@ async function startRoom(code) {
     socket.disconnect();
   });
 
-  socket.on("joined", async ({ isInitiator: initiator }) => {
-    isInitiator = initiator;
-    $("roomCodeDisplay").textContent = roomId;
+  socket.on("joined", async ({ existingPeers, maxSize }) => {
+    roomMaxSize = maxSize;
     $("headerRoomCode").textContent = roomId;
-    showScreen("waiting");
+    enterChat();
+    addSystemMessage(
+      existingPeers.length === 0
+        ? `Room ${roomId} created. Share the code to invite others (up to ${maxSize} people).`
+        : `Joined room ${roomId}.`
+    );
+    updateHeaderStatus();
+
+    // We joined after these people - we initiate the connection to each.
+    for (const peer of existingPeers) {
+      await connectToPeer(peer.socketId, peer.username, true);
+    }
   });
 
-  socket.on("peer-ready", async () => {
-    // Both participants present. Exchange public keys, then establish WebRTC.
-    peerLink = new PeerLink(socket, roomId, isInitiator);
-    wirePeerLink();
-
-    socket.emit("signal", { kind: "pubkey", key: myPublicKeyB64 });
-
-    if (isInitiator) {
-      await peerLink.createOffer();
-    }
+  socket.on("peer-joined", async ({ socketId, username }) => {
+    addSystemMessage(`${username} joined the room.`);
+    // They joined after us - they'll send the offer; we just get ready.
+    await connectToPeer(socketId, username, false);
   });
 
   socket.on("signal", async (payload) => {
     if (payload.kind === "pubkey") {
-      peerPublicKeyB64 = payload.key;
-      const peerPublicKey = await C.importPublicKey(peerPublicKeyB64);
-      sharedKey = await C.deriveSharedKey(keyPair.privateKey, peerPublicKey);
-      await showFingerprint();
+      const entry = peers.get(payload.from);
+      if (!entry) return;
+      entry.publicKeyB64 = payload.key;
+      const peerPublicKey = await C.importPublicKey(payload.key);
+      entry.sharedKey = await C.deriveSharedKey(keyPair.privateKey, peerPublicKey);
+      await addFingerprintFor(entry);
     } else {
-      await peerLink.handleSignal(payload);
+      const entry = peers.get(payload.from);
+      if (entry) await entry.peerLink.handleSignal(payload);
     }
   });
 
-  socket.on("peer-left", () => {
-    addSystemMessage("The other person left the chat.");
-    $("statusDot").classList.remove("connected");
-    $("headerStatus").textContent = "peer disconnected";
+  socket.on("peer-left", ({ socketId }) => {
+    const entry = peers.get(socketId);
+    if (!entry) return;
+    addSystemMessage(`${entry.username} left the room.`);
+    entry.peerLink.close();
+    entry.videoEl?.remove();
+    removeFingerprintFor(socketId);
+    peers.delete(socketId);
+    updateHeaderStatus();
+    if (peers.size === 0) $("videoArea").classList.add("hidden");
   });
 }
 
-function wirePeerLink() {
-  peerLink.onDataChannelOpen = () => {
-    if (sharedKey) enterChat();
-  };
-  peerLink.onDataChannelMessage = handleIncoming;
+async function connectToPeer(remoteSocketId, remoteUsername, isInitiator) {
+  const peerLink = new PeerLink(socket, remoteSocketId, remoteUsername, isInitiator);
+  const entry = { peerLink, username: remoteUsername, publicKeyB64: null, sharedKey: null, videoEl: null };
+  peers.set(remoteSocketId, entry);
+
+  peerLink.onDataChannelOpen = () => updateHeaderStatus();
+  peerLink.onDataChannelMessage = (raw) => handleIncoming(raw, remoteSocketId);
   peerLink.onConnectionStateChange = (state) => {
-    if (state === "connected") {
-      $("statusDot").classList.add("connected");
-      $("headerStatus").textContent = "connected · end-to-end encrypted";
-    } else if (state === "disconnected" || state === "failed" || state === "closed") {
-      $("statusDot").classList.remove("connected");
-      $("headerStatus").textContent = state;
+    updateHeaderStatus();
+    if (state === "failed" || state === "closed") {
+      // Leave cleanup is normally driven by the server's peer-left event;
+      // this just keeps the UI honest if a connection dies without one.
+      updateHeaderStatus();
     }
   };
   peerLink.onRemoteTrack = (stream) => {
-    $("remoteVideo").srcObject = stream;
-    $("videoArea").classList.remove("hidden");
-    $("endCallBtn").classList.remove("hidden");
+    let videoEl = entry.videoEl;
+    if (!videoEl) {
+      videoEl = document.createElement("video");
+      videoEl.autoplay = true;
+      videoEl.playsInline = true;
+      entry.videoEl = videoEl;
+      $("videoArea").appendChild(videoEl);
+      $("videoArea").classList.remove("hidden");
+      $("endCallBtn").classList.remove("hidden");
+    }
+    videoEl.srcObject = stream;
   };
+
+  // Send our public key to this specific peer - each pairwise connection
+  // gets its own AES key, derived independently the moment their key arrives.
+  socket.emit("signal", { to: remoteSocketId, kind: "pubkey", key: myPublicKeyB64 });
+
+  if (isInitiator) {
+    await peerLink.createOffer();
+  }
 }
 
-async function showFingerprint() {
-  // A short verification code derived from BOTH public keys, sorted so both
-  // sides compute the identical string. If this doesn't match what your
-  // contact sees, someone is intercepting the key exchange (MITM) - don't trust the chat.
-  const combined = [myPublicKeyB64, peerPublicKeyB64].sort().join("|");
+function updateHeaderStatus() {
+  const connectedCount = [...peers.values()].filter(
+    (p) => p.peerLink.dataChannel?.readyState === "open"
+  ).length;
+  $("statusDot").classList.toggle("connected", connectedCount > 0);
+  $("headerStatus").textContent =
+    connectedCount === 0
+      ? "waiting for others to join…"
+      : `${connectedCount} ${connectedCount === 1 ? "person" : "people"} connected · end-to-end encrypted`;
+}
+
+// ---------- Per-peer fingerprint verification ----------
+async function addFingerprintFor(entry) {
+  // A short verification code derived from BOTH public keys in this pair,
+  // sorted so both sides compute the identical string. If what you see for
+  // someone doesn't match what THEY see for you, someone is intercepting
+  // that specific connection (MITM) - don't trust messages to/from them.
+  const combined = [myPublicKeyB64, entry.publicKeyB64].sort().join("|");
   const hash = await C.sha256Hex(combined);
   const code = hash.slice(0, 12).match(/.{1,4}/g).join(" ").toUpperCase();
-  $("fingerprintCode").textContent = code;
-  $("fingerprintBar").classList.remove("hidden");
-  if (peerLink && peerLink.dataChannel && peerLink.dataChannel.readyState === "open") {
-    enterChat();
+
+  let row = document.getElementById(`fp-${entry.username}`);
+  if (!row) {
+    row = document.createElement("div");
+    row.id = `fp-${entry.username}`;
+    row.className = "fingerprint-row";
+    $("fingerprintList").appendChild(row);
   }
+  row.textContent = `${entry.username}: ${code}`;
+  $("fingerprintBar").classList.remove("hidden");
+}
+
+function removeFingerprintFor(socketId) {
+  const entry = peers.get(socketId);
+  if (!entry) return;
+  document.getElementById(`fp-${entry.username}`)?.remove();
 }
 
 function enterChat() {
@@ -178,28 +248,16 @@ $("textInput").addEventListener("keydown", (e) => {
 
 async function sendTextMessage() {
   const text = $("textInput").value.trim();
-  if (!text || !sharedKey) return;
-  const { iv, data } = await C.encrypt(sharedKey, text);
-  const envelope = { type: "text", iv, data };
-  if (peerLink.send(JSON.stringify(envelope))) {
-    addBubble("me", { kind: "text", text });
-    $("textInput").value = "";
+  if (!text) return;
+  const envelope = { type: "text" };
+  for (const entry of peers.values()) {
+    if (!entry.sharedKey) continue;
+    const { iv, data } = await C.encrypt(entry.sharedKey, text);
+    entry.peerLink.send(JSON.stringify({ ...envelope, iv, data }));
   }
+  addBubble("me", { kind: "text", text });
+  $("textInput").value = "";
 }
-
-// ---------- Emoji picker ----------
-const EMOJIS = "😀😁😂🤣😊😍😘😜🤔😎😢😭😡🥳😴🤯👍👎👏🙏🔥❤️💯🎉🎂🍕🍔🍺☕🌈☀️🌙⭐🚀✈️🏆⚽🎮📷🎵🎬💡🔒✅❌❓❗".match(/./gu);
-const picker = $("emojiPicker");
-EMOJIS.forEach((e) => {
-  const span = document.createElement("span");
-  span.textContent = e;
-  span.onclick = () => {
-    $("textInput").value += e;
-    $("textInput").focus();
-  };
-  picker.appendChild(span);
-});
-$("emojiBtn").onclick = () => picker.classList.toggle("hidden");
 
 // ---------- Sending: files (also used for recorded audio/video) ----------
 $("fileBtn").onclick = () => $("fileInput").click();
@@ -211,37 +269,47 @@ $("fileInput").onchange = async (e) => {
 };
 
 async function sendFile(file) {
-  if (!sharedKey) return;
+  if (peers.size === 0) return;
   const id = crypto.randomUUID();
   const buf = await file.arrayBuffer();
   const totalChunks = Math.ceil(buf.byteLength / CHUNK_SIZE) || 1;
-
   const metaPlain = JSON.stringify({
     name: file.name,
     mime: file.type || "application/octet-stream",
     size: buf.byteLength,
     totalChunks,
   });
-  const metaEnc = await C.encrypt(sharedKey, metaPlain);
-  peerLink.send(JSON.stringify({ type: "file-meta", id, iv: metaEnc.iv, data: metaEnc.data }));
 
   const bubbleId = addBubble("me", { kind: "file-outgoing", name: file.name, mime: file.type, size: buf.byteLength });
 
-  for (let i = 0; i < totalChunks; i++) {
-    const start = i * CHUNK_SIZE;
-    const chunk = buf.slice(start, start + CHUNK_SIZE);
-    const enc = await C.encrypt(sharedKey, chunk);
-    await peerLink.waitForBufferedAmountLow();
-    peerLink.send(JSON.stringify({ type: "file-chunk", id, index: i, total: totalChunks, iv: enc.iv, data: enc.data }));
-    updateProgress(bubbleId, Math.round(((i + 1) / totalChunks) * 100));
+  // Send to every currently-connected peer. Each gets its own encrypted
+  // copy (their own pairwise key) - the plaintext bytes are the same, the
+  // ciphertext isn't.
+  for (const entry of peers.values()) {
+    if (!entry.sharedKey) continue;
+    const metaEnc = await C.encrypt(entry.sharedKey, metaPlain);
+    entry.peerLink.send(JSON.stringify({ type: "file-meta", id, iv: metaEnc.iv, data: metaEnc.data }));
+
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * CHUNK_SIZE;
+      const chunk = buf.slice(start, start + CHUNK_SIZE);
+      const enc = await C.encrypt(entry.sharedKey, chunk);
+      await entry.peerLink.waitForBufferedAmountLow();
+      entry.peerLink.send(
+        JSON.stringify({ type: "file-chunk", id, index: i, total: totalChunks, iv: enc.iv, data: enc.data })
+      );
+    }
   }
 
-  // Also show local preview using the original (unencrypted, since it's ours) blob
+  updateProgress(bubbleId, 100);
   finalizeOutgoingPreview(bubbleId, file);
 }
 
 // ---------- Receiving ----------
-async function handleIncoming(raw) {
+async function handleIncoming(raw, fromSocketId) {
+  const entry = peers.get(fromSocketId);
+  if (!entry || !entry.sharedKey) return;
+
   let envelope;
   try {
     envelope = JSON.parse(raw);
@@ -249,36 +317,39 @@ async function handleIncoming(raw) {
     return;
   }
 
+  const showSender = peers.size > 1; // label bubbles once it's more than a 1:1 chat
+
   if (envelope.type === "text") {
-    const text = await C.decryptToText(sharedKey, envelope.iv, envelope.data);
-    addBubble("them", { kind: "text", text });
+    const text = await C.decryptToText(entry.sharedKey, envelope.iv, envelope.data);
+    addBubble("them", { kind: "text", text, sender: showSender ? entry.username : null });
     return;
   }
 
   if (envelope.type === "file-meta") {
-    const plain = await C.decryptToText(sharedKey, envelope.iv, envelope.data);
+    const plain = await C.decryptToText(entry.sharedKey, envelope.iv, envelope.data);
     const meta = JSON.parse(plain);
     const bubbleId = addBubble("them", {
       kind: "file-incoming",
       name: meta.name,
       mime: meta.mime,
       size: meta.size,
+      sender: showSender ? entry.username : null,
     });
-    incomingFiles.set(envelope.id, { meta, chunks: new Array(meta.totalChunks), received: 0, bubbleId });
+    incomingFiles.set(envelope.id, { meta, chunks: new Array(meta.totalChunks), received: 0, bubbleId, fromSocketId });
     return;
   }
 
   if (envelope.type === "file-chunk") {
-    const entry = incomingFiles.get(envelope.id);
-    if (!entry) return;
-    const buf = await C.decrypt(sharedKey, envelope.iv, envelope.data);
-    entry.chunks[envelope.index] = buf;
-    entry.received++;
-    updateProgress(entry.bubbleId, Math.round((entry.received / entry.meta.totalChunks) * 100));
+    const fileEntry = incomingFiles.get(envelope.id);
+    if (!fileEntry || fileEntry.fromSocketId !== fromSocketId) return;
+    const buf = await C.decrypt(entry.sharedKey, envelope.iv, envelope.data);
+    fileEntry.chunks[envelope.index] = buf;
+    fileEntry.received++;
+    updateProgress(fileEntry.bubbleId, Math.round((fileEntry.received / fileEntry.meta.totalChunks) * 100));
 
-    if (entry.received === entry.meta.totalChunks) {
-      const blob = new Blob(entry.chunks, { type: entry.meta.mime });
-      finalizeIncomingPreview(entry.bubbleId, blob, entry.meta);
+    if (fileEntry.received === fileEntry.meta.totalChunks) {
+      const blob = new Blob(fileEntry.chunks, { type: fileEntry.meta.mime });
+      finalizeIncomingPreview(fileEntry.bubbleId, blob, fileEntry.meta);
       incomingFiles.delete(envelope.id);
     }
     return;
@@ -293,8 +364,17 @@ function addBubble(who, content) {
   div.className = `bubble ${who}`;
   div.id = id;
 
+  if (content.sender) {
+    const sender = document.createElement("div");
+    sender.className = "msg-sender";
+    sender.textContent = `@${content.sender}`;
+    div.appendChild(sender);
+  }
+
   if (content.kind === "text") {
-    div.textContent = content.text;
+    const text = document.createElement("div");
+    text.textContent = content.text;
+    div.appendChild(text);
   } else if (content.kind === "file-outgoing" || content.kind === "file-incoming") {
     const label = document.createElement("div");
     label.textContent = `${who === "me" ? "Sending" : "Receiving"}: ${content.name}`;
@@ -366,9 +446,15 @@ function renderMediaInto(bubbleId, url, mime, name) {
     a.href = url;
     a.download = name;
     a.className = "file-link";
-    a.textContent = `📄 Download ${name}`;
+    a.innerHTML = `${ICONS.file}<span>Download ${escapeHtml(name)}</span>`;
     el.appendChild(a);
   }
+}
+
+function escapeHtml(s) {
+  const div = document.createElement("div");
+  div.textContent = s;
+  return div.innerHTML;
 }
 
 function formatBytes(bytes) {
@@ -377,7 +463,7 @@ function formatBytes(bytes) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
-// ---------- Voice message recording ----------
+// ---------- Voice/video message recording ----------
 let mediaRecorder = null;
 let recordedChunks = [];
 let recordingKind = null; // 'audio' | 'video'
@@ -430,7 +516,9 @@ $("callBtn").onclick = async () => {
     $("localVideo").srcObject = localStream;
     $("videoArea").classList.remove("hidden");
     $("endCallBtn").classList.remove("hidden");
-    await peerLink.addLocalStream(localStream);
+    for (const entry of peers.values()) {
+      await entry.peerLink.addLocalStream(localStream);
+    }
   } catch (err) {
     addSystemMessage("Couldn't start call: " + err.message);
   }
@@ -438,21 +526,37 @@ $("callBtn").onclick = async () => {
 
 $("endCallBtn").onclick = () => {
   localStream?.getTracks().forEach((t) => t.stop());
-  $("videoArea").classList.add("hidden");
-  $("endCallBtn").classList.add("hidden");
+  localStream = null;
   $("localVideo").srcObject = null;
+  const anyRemoteVideo = [...peers.values()].some((p) => p.videoEl);
+  if (!anyRemoteVideo) $("videoArea").classList.add("hidden");
+  $("endCallBtn").classList.add("hidden");
 };
 
 // ---------- Leave ----------
 $("leaveBtn").onclick = () => {
-  peerLink?.close();
+  for (const entry of peers.values()) entry.peerLink.close();
+  peers.clear();
   socket?.emit("leave-room");
   socket?.disconnect();
-  location.reload();
+  localStream?.getTracks().forEach((t) => t.stop());
+  window.location.href = "messages.html";
 };
 
-$("copyCodeBtn").onclick = () => {
+// Also leave cleanly when using the header's Messages link or the Android
+// hardware back button (otherwise the room stays "occupied" until timeout).
+function leaveRoomQuietly() {
+  for (const entry of peers.values()) entry.peerLink.close();
+  peers.clear();
+  socket?.emit("leave-room");
+  socket?.disconnect();
+  localStream?.getTracks().forEach((t) => t.stop());
+}
+$("chatMessagesLink")?.addEventListener("click", leaveRoomQuietly);
+window.addEventListener("pagehide", leaveRoomQuietly);
+
+$("copyCodeBtn")?.addEventListener("click", () => {
   navigator.clipboard.writeText(roomId);
-  $("copyCodeBtn").textContent = "Copied!";
-  setTimeout(() => ($("copyCodeBtn").textContent = "Copy code"), 1500);
-};
+  $("copyCodeBtn").title = "Copied!";
+  setTimeout(() => ($("copyCodeBtn").title = "Copy room code"), 1500);
+});

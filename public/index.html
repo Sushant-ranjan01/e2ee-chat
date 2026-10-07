@@ -3,27 +3,28 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>🔒 E2EE Chat</title>
+<title>Quick Room — SecureChat</title>
 <link rel="manifest" href="/manifest.json" />
 <link rel="icon" href="/icons/favicon-32.png" />
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-<meta name="theme-color" content="#181c30" />
+<meta name="theme-color" content="#000000" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="E2EE Chat" />
+<meta name="apple-mobile-web-app-title" content="SecureChat" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
 <div id="landing" class="screen">
   <div class="card">
-    <h1>🔒 E2EE Chat</h1>
-    <p class="subtitle">Text, emoji, files, audio &amp; video — encrypted so only the two of you can read it. Not even this server can.</p>
-    <p class="hint" style="margin-bottom:16px;">Logged in as <span id="loggedInPhone"></span> · <a href="#" id="landingLogout" style="color:#7dd3fc;">log out</a></p>
-    <p class="hint" style="margin-bottom:16px;"><a href="messages.html" style="color:#7dd3fc;">💬 Go to Messages</a> — persistent conversations by username</p>
+    <div class="brand-mark" id="brandMark"></div>
+    <h1>Quick Room</h1>
+    <p class="subtitle">Text, files, audio &amp; video — encrypted so only the people in the room can read it. Not even this server can. Up to 6 people per room.</p>
+    <p class="hint" style="margin-bottom:16px;">Logged in as <span id="loggedInPhone"></span> · <a href="#" id="landingLogout" class="link">log out</a></p>
+    <p class="hint" style="margin-bottom:16px;"><a href="messages.html" class="link" id="goToMessagesLink"></a></p>
 
-    <button id="createBtn" class="primary">Start a new chat</button>
+    <button id="createBtn" class="primary">Start a new room</button>
 
     <div class="divider">or</div>
 
@@ -32,56 +33,46 @@
       <button id="joinBtn">Join</button>
     </div>
     <p id="landingError" class="error"></p>
-  </div>
-</div>
-
-<div id="waiting" class="screen hidden">
-  <div class="card">
-    <h2>Waiting for the other person…</h2>
-    <p>Share this code with them (outside this app — e.g. text or say it out loud):</p>
-    <div class="room-code" id="roomCodeDisplay"></div>
-    <button id="copyCodeBtn">Copy code</button>
-    <p class="hint">Nobody can join this room but the first two people who use this code — and once you're both in, the room closes to anyone else.</p>
+    <a href="messages.html" class="back-to-messages" id="backToMessages"></a>
   </div>
 </div>
 
 <div id="chat" class="screen hidden">
   <header id="chatHeader">
+    <button id="leaveBtn" class="icon-btn back-icon-btn" title="Leave room and go back to Messages"></button>
     <div class="status-dot" id="statusDot"></div>
     <div class="header-text">
       <strong>Room <span id="headerRoomCode"></span></strong>
       <span id="headerStatus" class="header-status">connecting…</span>
     </div>
-    <button id="callBtn" title="Start live video/audio call">📹</button>
-    <button id="endCallBtn" class="hidden" title="End call">📞✕</button>
-    <a href="messages.html" class="nav-link-btn" title="Messages">💬</a>
-    <button id="leaveBtn" title="Leave chat">Leave</button>
-    <button id="logoutBtn" title="Log out">🚪</button>
+    <button id="copyCodeBtn" class="icon-btn" title="Copy room code"></button>
+    <button id="callBtn" class="icon-btn" title="Start live video/audio call"></button>
+    <button id="endCallBtn" class="icon-btn hidden" title="End call"></button>
+    <a href="messages.html" id="chatMessagesLink" class="nav-link-btn icon-btn" title="Leave room and go to Messages"></a>
+    <button id="logoutBtn" class="icon-btn" title="Log out"></button>
   </header>
 
   <div id="fingerprintBar" class="fingerprint-bar hidden">
-    🔑 Verify you're really end-to-end encrypted with your contact — compare this code out loud:
-    <span id="fingerprintCode"></span>
+    <span class="fp-icon"></span>
+    Verify each connection is really end-to-end encrypted — compare these codes with each person out loud:
+    <div id="fingerprintList"></div>
   </div>
 
   <div id="videoArea" class="video-area hidden">
     <video id="localVideo" autoplay playsinline muted></video>
-    <video id="remoteVideo" autoplay playsinline></video>
+    <!-- Remote participants' video elements are added here dynamically, one per person -->
   </div>
 
   <div id="messages"></div>
 
   <div id="composer">
-    <button id="emojiBtn" title="Emoji">😀</button>
-    <button id="fileBtn" title="Send file">📎</button>
-    <button id="audioBtn" title="Record voice message">🎤</button>
-    <button id="videoMsgBtn" title="Record video message">🎬</button>
+    <button id="fileBtn" class="icon-btn" title="Send file"></button>
+    <button id="audioBtn" class="icon-btn" title="Record voice message"></button>
+    <button id="videoMsgBtn" class="icon-btn" title="Record video message"></button>
     <input id="textInput" placeholder="Type an encrypted message…" autocomplete="off" />
-    <button id="sendBtn" class="primary">Send</button>
+    <button id="sendBtn" class="primary icon-btn" title="Send"></button>
     <input type="file" id="fileInput" multiple hidden />
   </div>
-
-  <div id="emojiPicker" class="emoji-picker hidden"></div>
 
   <div id="recordingBar" class="recording-bar hidden">
     <span class="rec-dot"></span>
@@ -92,6 +83,23 @@
 </div>
 
 <script src="vendor/socket.io.min.js"></script>
+<script type="module">
+  import { ICONS } from "./icons.js";
+  document.getElementById("brandMark").innerHTML = ICONS.room;
+  document.getElementById("goToMessagesLink").innerHTML = ICONS.message + " Go to Messages";
+  document.getElementById("backToMessages").innerHTML = ICONS.back + " Back to Messages";
+  document.getElementById("leaveBtn").innerHTML = ICONS.back;
+  document.getElementById("copyCodeBtn").innerHTML = ICONS.copy;
+  document.getElementById("callBtn").innerHTML = ICONS.video;
+  document.getElementById("endCallBtn").innerHTML = ICONS.phoneOff;
+  document.querySelector(".nav-link-btn").innerHTML = ICONS.message;
+  document.getElementById("logoutBtn").innerHTML = ICONS.logout;
+  document.querySelector(".fp-icon").innerHTML = ICONS.key;
+  document.getElementById("fileBtn").innerHTML = ICONS.attach;
+  document.getElementById("audioBtn").innerHTML = ICONS.mic;
+  document.getElementById("videoMsgBtn").innerHTML = ICONS.video;
+  document.getElementById("sendBtn").innerHTML = ICONS.send;
+</script>
 <script type="module" src="app.js"></script>
 <script type="module">
   import { isNativeApp } from "./config.js";

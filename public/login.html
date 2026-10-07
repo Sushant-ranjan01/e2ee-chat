@@ -3,38 +3,46 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>🔒 Log in — E2EE Chat</title>
+<title>Log in — SecureChat</title>
 <link rel="manifest" href="/manifest.json" />
 <link rel="icon" href="/icons/favicon-32.png" />
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-<meta name="theme-color" content="#181c30" />
+<meta name="theme-color" content="#000000" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="apple-mobile-web-app-title" content="E2EE Chat" />
+<meta name="apple-mobile-web-app-title" content="SecureChat" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
 <div class="screen">
   <div class="card">
-    <h1>🔒 E2EE Chat</h1>
+    <div class="brand-mark" id="brandMark"></div>
+    <h1>SecureChat</h1>
     <p class="subtitle" id="modeSubtitle">Log in to continue.</p>
 
     <div id="loginForm">
-      <input id="loginIdentifier" placeholder="Username or phone number" autocomplete="username" />
+      <input id="loginIdentifier" placeholder="@username or phone number" autocomplete="username" />
       <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password" style="margin-top:10px;" />
       <button id="loginBtn" class="primary" style="margin-top:10px;">Log in</button>
-      <p class="hint">New here? <a href="#" id="showRegister" style="color:#7dd3fc;">Create an account</a></p>
+      <p class="hint">New here? <a href="#" id="showRegister" class="link">Create an account</a></p>
     </div>
 
     <div id="registerForm" class="hidden">
-      <input id="regUsername" placeholder="Choose a username" autocomplete="username" />
-      <input id="regPhone" placeholder="+919876543210" autocomplete="tel" style="margin-top:10px;" />
+      <div class="phone-input-row">
+        <span class="phone-prefix">@</span>
+        <input id="regUsername" placeholder="choose_a_username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" maxlength="21" />
+      </div>
+      <p class="hint" style="margin:6px 0 0;text-align:left;">3-20 characters: letters, numbers or underscore.</p>
+      <div class="phone-input-row" style="margin-top:10px;">
+        <span class="phone-prefix">+91</span>
+        <input id="regPhone" placeholder="10-digit mobile number" autocomplete="tel" inputmode="numeric" maxlength="10" />
+      </div>
       <input id="regPassword" type="password" placeholder="Choose a password (8+ characters)" autocomplete="new-password" style="margin-top:10px;" />
       <input id="regPasswordConfirm" type="password" placeholder="Confirm password" autocomplete="new-password" style="margin-top:10px;" />
       <button id="registerBtn" class="primary" style="margin-top:10px;">Create account</button>
-      <p class="hint">Already have an account? <a href="#" id="showLogin" style="color:#7dd3fc;">Log in</a></p>
+      <p class="hint">Already have an account? <a href="#" id="showLogin" class="link">Log in</a></p>
     </div>
 
     <p id="loginStatus" class="hint" style="min-height:16px;"></p>
@@ -42,6 +50,10 @@
   </div>
 </div>
 
+<script type="module">
+  import { ICONS } from "./icons.js";
+  document.getElementById("brandMark").innerHTML = ICONS.lock;
+</script>
 <script src="login.js" type="module"></script>
 <script type="module">
   import { isNativeApp } from "./config.js";

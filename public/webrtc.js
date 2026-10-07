@@ -1,19 +1,25 @@
 /**
- * webrtc.js — Establishes a direct peer-to-peer connection between the two
- * browsers. Once connected, the DataChannel (chat/files) and any media
- * tracks (live call) travel BROWSER-TO-BROWSER, encrypted in transit by
- * DTLS-SRTP (mandatory, built into WebRTC itself) — the signaling server is
- * no longer in the data path at all for chat/file content.
+ * webrtc.js — One PeerLink = one direct connection to ONE other participant.
  *
- * We still add our own AES-GCM layer on top (see crypto.js) so that content
- * is encrypted with a key that this app's server has never seen, rather than
- * relying solely on transport-level encryption.
+ * A Quick Room with more than 2 people uses a mesh topology: everyone opens
+ * a separate PeerLink (and separate WebRTC connection) to every other
+ * participant. There's no central media server — app.js creates one
+ * PeerLink per remote participant and keeps them in a map keyed by that
+ * participant's socket ID.
+ *
+ * Once connected, each PeerLink's DataChannel and media tracks travel
+ * directly between those two browsers, encrypted in transit by DTLS-SRTP
+ * (mandatory, built into WebRTC) — the signaling server is only used to
+ * exchange the initial handshake (SDP/ICE) for each pair, addressed
+ * specifically to that pair (see the `to`/`from` fields), never broadcast
+ * to the whole room.
  */
 
 export class PeerLink {
-  constructor(socket, roomId, isInitiator) {
+  constructor(socket, remoteSocketId, remoteUsername, isInitiator) {
     this.socket = socket;
-    this.roomId = roomId;
+    this.remoteSocketId = remoteSocketId;
+    this.remoteUsername = remoteUsername;
     this.isInitiator = isInitiator;
     this.pc = new RTCPeerConnection({
       iceServers: [
@@ -30,7 +36,7 @@ export class PeerLink {
 
     this.pc.onicecandidate = (e) => {
       if (e.candidate) {
-        this.socket.emit("signal", { kind: "ice", candidate: e.candidate });
+        this._sendSignal({ kind: "ice", candidate: e.candidate });
       }
     };
 
@@ -53,6 +59,10 @@ export class PeerLink {
     }
   }
 
+  _sendSignal(payload) {
+    this.socket.emit("signal", { to: this.remoteSocketId, ...payload });
+  }
+
   _wireDataChannel(channel) {
     channel.binaryType = "arraybuffer";
     channel.onopen = () => this.onDataChannelOpen?.();
@@ -67,7 +77,7 @@ export class PeerLink {
         await this._flushIce();
         const answer = await this.pc.createAnswer();
         await this.pc.setLocalDescription(answer);
-        this.socket.emit("signal", { kind: "sdp", sdp: this.pc.localDescription });
+        this._sendSignal({ kind: "sdp", sdp: this.pc.localDescription });
       } else {
         await this.pc.setRemoteDescription(desc);
         await this._flushIce();
@@ -91,7 +101,7 @@ export class PeerLink {
   async createOffer() {
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
-    this.socket.emit("signal", { kind: "sdp", sdp: this.pc.localDescription });
+    this._sendSignal({ kind: "sdp", sdp: this.pc.localDescription });
   }
 
   send(data) {
@@ -115,7 +125,7 @@ export class PeerLink {
     // Renegotiate since we added tracks after initial connection.
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
-    this.socket.emit("signal", { kind: "sdp", sdp: this.pc.localDescription });
+    this._sendSignal({ kind: "sdp", sdp: this.pc.localDescription });
   }
 
   close() {
