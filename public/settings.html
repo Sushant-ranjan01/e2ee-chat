@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Settings — SecureChat</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icons/favicon-32.png" />
+<meta name="theme-color" content="#000000" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<div class="settings-page">
+  <header class="settings-header">
+    <a href="messages.html" id="backLink" class="hb" title="Back to messages"></a>
+    <h1>Settings &amp; privacy</h1>
+  </header>
+
+  <main class="settings-body">
+    <section class="settings-section">
+      <h2>Privacy</h2>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Show my online status</strong>
+          <span>When this is off, nobody sees you as "Online". You can still see who else is online.</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="showOnlineToggle" aria-label="Show my online status" />
+          <span class="track"></span>
+        </label>
+      </div>
+      <p id="privacyMsg" class="settings-msg"></p>
+    </section>
+
+    <section class="settings-section">
+      <h2>Blocked users</h2>
+      <div id="blockedList"></div>
+      <div class="block-add">
+        <input id="blockInput" placeholder="Username to block" maxlength="21" autocomplete="off" autocapitalize="none" spellcheck="false" />
+        <button id="blockAddBtn" class="primary"></button>
+      </div>
+      <p id="blockMsg" class="settings-msg"></p>
+      <p class="hint">Blocked people can't message or call you, can't invite you to rooms, and never see when you're online. They are not told they were blocked.</p>
+    </section>
+
+    <section class="settings-section">
+      <h2>Notifications</h2>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>Show message text in notifications</strong>
+          <span>On: the alert shows who wrote and what they said. Off: just "New message". The text is added on your phone after decrypting - it never goes through Google's servers. If the app has been fully closed, the alert can only show who wrote (the message is still encrypted until you open the app).</span>
+        </div>
+        <label class="switch"><input type="checkbox" id="previewToggle" aria-label="Show message text in notifications" /><span class="track"></span></label>
+      </div>
+      <button id="testNotifBtn" class="share-secondary"></button>
+      <p id="notifMsg" class="settings-msg"></p>
+    </section>
+
+    <section class="settings-section">
+      <h2>App lock &amp; screen privacy</h2>
+      <div class="setting-row">
+        <div class="setting-text">
+          <strong>PIN lock</strong>
+          <span>Ask for a PIN when you open the app or come back to it. After 10 wrong tries the app signs out and erases the messages stored on this device.</span>
+        </div>
+        <label class="switch"><input type="checkbox" id="lockToggle" aria-label="PIN lock" /><span class="track"></span></label>
+      </div>
+      <div id="lockOptions" class="hidden">
+        <div class="setting-row">
+          <div class="setting-text"><strong>Lock after</strong><span>Time in the background before the PIN is needed again.</span></div>
+          <select id="lockTimeout" aria-label="Lock after">
+            <option value="15">15 seconds</option>
+            <option value="60">1 minute</option>
+            <option value="300">5 minutes</option>
+            <option value="900">15 minutes</option>
+          </select>
+        </div>
+        <div class="setting-row hidden" id="bioRow">
+          <div class="setting-text"><strong>Unlock with fingerprint</strong><span>The PIN always works as a backup.</span></div>
+          <label class="switch"><input type="checkbox" id="bioToggle" aria-label="Unlock with fingerprint" /><span class="track"></span></label>
+        </div>
+        <button id="changePinBtn" class="share-secondary">Change PIN</button>
+      </div>
+      <div class="setting-row hidden" id="secureRow">
+        <div class="setting-text">
+          <strong>Block screenshots &amp; hide app preview</strong>
+          <span>Stops screenshots and screen recording, and shows a blank tile in the recent-apps list.</span>
+        </div>
+        <label class="switch"><input type="checkbox" id="secureToggle" aria-label="Block screenshots" /><span class="track"></span></label>
+      </div>
+      <div id="pinForm" class="pin-form hidden">
+        <input id="pinOld" type="password" inputmode="numeric" maxlength="8" placeholder="Current PIN" autocomplete="off" />
+        <input id="pinNew" type="password" inputmode="numeric" maxlength="8" placeholder="New PIN (4-8 digits)" autocomplete="off" />
+        <input id="pinConfirm" type="password" inputmode="numeric" maxlength="8" placeholder="Repeat new PIN" autocomplete="off" />
+        <div class="pin-actions"><button id="pinSaveBtn" class="primary">Save</button><button id="pinCancelBtn">Cancel</button></div>
+      </div>
+      <p id="lockMsg" class="settings-msg"></p>
+    </section>
+
+    <section class="settings-section">
+      <h2>Account</h2>
+      <div class="setting-row">
+        <div class="setting-text"><strong id="whoAmI"></strong><span>Signed in on this device</span></div>
+      </div>
+      <button id="eraseLocalBtn" class="danger-btn"></button>
+      <p class="hint">Messages you've read are kept in an encrypted vault on this device (that's what lets the server forget them). This button wipes that vault and this device's one-time keys.</p>
+      <p id="eraseMsg" class="settings-msg"></p>
+      <button id="logoutBtn" class="danger-btn" style="margin-top:6px;"></button>
+    </section>
+  </main>
+</div>
+
+<script type="module" src="settings-init.js"></script>
+<script type="module" src="settings.js"></script>
+</body>
+</html>

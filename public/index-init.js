@@ -1,0 +1,22 @@
+// Moved out of index.html so the page can run under a strict Content-Security-Policy (no inline scripts).
+import { ICONS } from "./icons.js";
+document.getElementById("brandMark").innerHTML = ICONS.room;
+document.getElementById("goToMessagesLink").innerHTML = ICONS.message + " Go to Messages";
+document.getElementById("leaveBtn").innerHTML = ICONS.back;
+document.getElementById("goToSettingsLink").innerHTML = ICONS.settings + " Settings";
+document.getElementById("shareBtn").innerHTML = ICONS.share + '<span class="hb-text">Share</span>';
+document.getElementById("shareCloseBtn").innerHTML = ICONS.close;
+document.getElementById("shareLinkBtn").innerHTML = ICONS.share + " Share link…";
+document.getElementById("shareCopyBtn").innerHTML = ICONS.copy + " Copy link";
+document.getElementById("callBtn").innerHTML = ICONS.video + '<span class="hb-text">Video call</span>';
+document.getElementById("endCallBtn").innerHTML = ICONS.phoneOff + '<span class="hb-text">End call</span>';
+document.getElementById("menuBtn").innerHTML = ICONS.more + '<span class="hb-text">Menu</span>';
+document.getElementById("muteBtn").innerHTML = ICONS.mic;
+document.getElementById("camToggleBtn").innerHTML = ICONS.video;
+document.getElementById("flipCamBtn").innerHTML = ICONS.flipCamera;
+document.getElementById("hangupBtn").innerHTML = ICONS.phoneOff;
+document.querySelector(".fp-icon").innerHTML = ICONS.key;
+document.getElementById("fileBtn").innerHTML = ICONS.attach;
+document.getElementById("audioBtn").innerHTML = ICONS.mic;
+document.getElementById("videoMsgBtn").innerHTML = ICONS.camera;
+document.getElementById("sendBtn").innerHTML = ICONS.send;

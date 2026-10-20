@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<title>Quick Room — SecureChat</title>
+<link rel="manifest" href="/manifest.json" />
+<link rel="icon" href="/icons/favicon-32.png" />
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+<meta name="theme-color" content="#000000" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="SecureChat" />
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="landing" class="screen">
+  <div class="card">
+    <div class="brand-mark" id="brandMark"></div>
+    <h1>Quick Room</h1>
+    <p class="subtitle">Text, files, audio &amp; video — encrypted so only the people in the room can read it. Not even this server can. Up to 6 people per room.</p>
+    <p class="hint" style="margin-bottom:16px;">Logged in as <span id="loggedInPhone"></span> · <a href="#" id="landingLogout" class="link">log out</a></p>
+    <p class="hint" style="margin-bottom:16px;"><a href="messages.html" class="link" id="goToMessagesLink"></a> &nbsp;·&nbsp; <a href="settings.html" class="link" id="goToSettingsLink"></a></p>
+
+    <button id="createBtn" class="primary">Start a new room</button>
+
+    <div class="divider">or</div>
+
+    <div class="join-row">
+      <input id="joinCode" placeholder="Enter room code" maxlength="12" autocomplete="off" />
+      <button id="joinBtn">Join</button>
+    </div>
+    <p id="landingError" class="error"></p>
+  </div>
+</div>
+
+<div id="chat" class="screen hidden">
+  <header id="chatHeader">
+    <button id="leaveBtn" class="icon-btn back-icon-btn" title="Leave room"></button>
+    <div class="status-dot" id="statusDot"></div>
+    <div class="header-text">
+      <strong>Room <span id="headerRoomCode"></span></strong>
+      <span id="headerStatus" class="header-status">connecting…</span>
+    </div>
+    <button id="shareBtn" class="icon-btn hb" title="Share this room"></button>
+    <button id="callBtn" class="icon-btn hb" title="Start video call"></button>
+    <button id="endCallBtn" class="icon-btn hb hidden" title="End call"></button>
+    <button id="menuBtn" class="icon-btn hb" title="Menu" aria-label="Menu"></button>
+  </header>
+
+  <div id="fingerprintBar" class="fingerprint-bar hidden">
+    <span class="fp-icon"></span>
+    Verify each connection is really end-to-end encrypted — compare these codes with each person out loud:
+    <div id="fingerprintList"></div>
+  </div>
+
+  <div id="videoArea" class="video-area hidden">
+    <video id="localVideo" autoplay playsinline muted></video>
+    <!-- Remote participants' video elements are added here dynamically, one per person -->
+  </div>
+
+  <div id="callControls" class="call-controls hidden">
+    <button id="muteBtn" class="call-ctl" title="Mute microphone"></button>
+    <button id="camToggleBtn" class="call-ctl" title="Turn camera off"></button>
+    <button id="flipCamBtn" class="call-ctl hidden" title="Switch camera"></button>
+    <button id="hangupBtn" class="call-ctl danger" title="End call"></button>
+  </div>
+
+  <div id="messages"></div>
+
+  <div id="composer">
+    <button id="fileBtn" class="icon-btn" title="Send file"></button>
+    <button id="audioBtn" class="icon-btn" title="Record voice message"></button>
+    <button id="videoMsgBtn" class="icon-btn" title="Record video message"></button>
+    <input id="textInput" placeholder="Type an encrypted message…" autocomplete="off" />
+    <button id="sendBtn" class="primary icon-btn" title="Send"></button>
+    <input type="file" id="fileInput" multiple hidden />
+  </div>
+
+  <div id="recordingBar" class="recording-bar hidden">
+    <span class="rec-dot"></span>
+    <span id="recordingLabel">Recording…</span>
+    <button id="stopRecordBtn">Stop &amp; Send</button>
+    <button id="cancelRecordBtn">Cancel</button>
+  </div>
+</div>
+
+<!-- Share panel: opens automatically right after you create a room -->
+<div id="sharePanel" class="share-panel hidden" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+  <div class="share-card">
+    <button id="shareCloseBtn" class="icon-btn share-close" title="Close"></button>
+    <h2 id="shareTitle">Share this room</h2>
+    <div class="room-code" id="shareCode"></div>
+
+    <button id="shareLinkBtn" class="primary"></button>
+    <button id="shareCopyBtn" class="share-secondary"></button>
+
+    <div class="divider">or invite someone on this app</div>
+    <div class="join-row">
+      <input id="inviteUsername" placeholder="Their username" maxlength="21" autocomplete="off" autocapitalize="none" spellcheck="false" />
+      <button id="inviteSendBtn">Invite</button>
+    </div>
+    <p id="inviteMsg" class="invite-msg"></p>
+    <p class="hint share-hint">Nobody else can find this room. It's erased automatically <span id="shareTtl">2 minutes</span> after the last person leaves.</p>
+  </div>
+</div>
+
+<script src="vendor/socket.io.min.js"></script>
+<script type="module" src="index-init.js"></script>
+<script type="module" src="app.js"></script>
+<script type="module" src="sw-register.js"></script>
+</body>
+</html>

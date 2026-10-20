@@ -1,0 +1,26 @@
+// Moved out of messages.html so the page can run under a strict Content-Security-Policy (no inline scripts).
+import { ICONS } from "./icons.js";
+document.getElementById("unlockBrandMark").innerHTML = ICONS.key;
+document.getElementById("quickRoomLink").innerHTML = ICONS.room + '<span class="hb-text">Quick Room</span>';
+document.getElementById("msgMenuBtn").innerHTML = ICONS.more + '<span class="hb-text">Menu</span>';
+document.getElementById("threadMenuBtn").innerHTML = ICONS.more + '<span class="hb-text">More</span>';
+document.getElementById("unblockBannerBtn").innerHTML = "Unblock";
+document.getElementById("searchIcon").innerHTML = ICONS.search;
+document.getElementById("newGroupBtn").innerHTML = ICONS.userPlus + '<span class="hb-text">New group</span>';
+document.getElementById("closeGroupBtn").innerHTML = ICONS.close;
+document.getElementById("backBtn").innerHTML = ICONS.back;
+document.getElementById("msgFileBtn").innerHTML = ICONS.attach;
+document.getElementById("msgVoiceBtn").innerHTML = ICONS.mic;
+document.getElementById("msgShareRoomBtn").innerHTML = ICONS.room;
+document.getElementById("threadCallBtn").innerHTML = ICONS.video + '<span class="hb-text">Video call</span>';
+document.getElementById("msgEmojiBtn").innerHTML = ICONS.smile;
+document.getElementById("replyCancelBtn").innerHTML = ICONS.close;
+document.getElementById("lightboxSave").innerHTML = ICONS.download;
+document.getElementById("lightboxClose").innerHTML = ICONS.close;
+document.getElementById("emptyConvosIcon").innerHTML = ICONS.message;
+document.getElementById("welcomeMark").innerHTML = ICONS.lock;
+document.getElementById("welcomeGroupBtn").innerHTML = ICONS.userPlus + "<span>New group</span>";
+document.getElementById("welcomeRoomBtn").innerHTML = ICONS.room + "<span>Start a Quick Room</span>";
+document.getElementById("declineCallBtn").innerHTML = ICONS.phoneOff;
+document.getElementById("acceptCallBtn").innerHTML = ICONS.video;
+document.getElementById("threadSendBtn").innerHTML = ICONS.send;
